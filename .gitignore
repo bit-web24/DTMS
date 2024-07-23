@@ -1,2 +1,3 @@
 services/**/proto
 googleapis
+.env

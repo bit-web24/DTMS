@@ -6,8 +6,10 @@ import (
 	"log"
 	"net"
 	"os"
+	"time"
 
 	userpb "github.com/bit-web24/DTMS/services/user/proto"
+	"github.com/google/uuid"
 	"github.com/joho/godotenv"
 
 	pb "github.com/bit-web24/DTMS/services/task/proto"
@@ -18,9 +20,11 @@ import (
 )
 
 type Task struct {
-	ID          string `gorm:"primaryKey"`
-	Description string `gorm:"size:255"`
-	UserID      string `gorm:"size:255"`
+	ID          string    `gorm:"type:uuid;default:uuid_generate_v4();primary_key"`
+	Description string    `gorm:"size:255;not null"`
+	UserID      string    `gorm:"size:255"`
+	CreatedAt   time.Time `gorm:"default:current_timestamp"`
+	UpdatedAt   time.Time `gorm:"default:current_timestamp"`
 }
 
 type server struct {
@@ -30,15 +34,18 @@ type server struct {
 }
 
 func (s *server) CreateTask(ctx context.Context, req *pb.CreateTaskRequest) (*pb.CreateTaskResponse, error) {
-	userReq := &userpb.GetUserRequest{Id: req.GetUserId()}
-	userRes, err := s.userClient.GetUser(ctx, userReq)
-	if err != nil {
-		return nil, fmt.Errorf("user not found")
+	if req.GetUserId() != "" {
+		userReq := &userpb.GetUserRequest{Id: req.GetUserId()}
+		_, err := s.userClient.GetUser(ctx, userReq)
+		if err != nil {
+			return nil, fmt.Errorf("user not found")
+		}
 	}
 
 	task := &Task{
+		ID:          uuid.New().String(),
 		Description: req.GetDescription(),
-		UserID:      userRes.User.GetId(),
+		UserID:      req.GetUserId(),
 	}
 	result := s.db.Create(task)
 	if result.Error != nil {

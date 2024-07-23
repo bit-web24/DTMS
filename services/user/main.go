@@ -6,8 +6,10 @@ import (
 	"log"
 	"net"
 	"os"
+	"time"
 
 	pb "github.com/bit-web24/DTMS/services/user/proto"
+	"github.com/google/uuid"
 	"github.com/joho/godotenv"
 
 	"google.golang.org/grpc"
@@ -17,9 +19,11 @@ import (
 
 type User struct {
 	gorm.Model
-	ID       string `gorm:"primaryKey"`
-	Username string `gorm:"size:255"`
-	Email    string `gorm:"size:255"`
+	ID        string    `gorm:"type:uuid;default:uuid_generate_v4();primary_key"`
+	Username  string    `gorm:"size:255;not null;unique"`
+	Email     string    `gorm:"size:255;not null;unique"`
+	CreatedAt time.Time `gorm:"default:current_timestamp"`
+	UpdatedAt time.Time `gorm:"default:current_timestamp"`
 }
 
 type server struct {
@@ -28,7 +32,7 @@ type server struct {
 }
 
 func (s *server) CreateUser(ctx context.Context, req *pb.CreateUserRequest) (*pb.CreateUserResponse, error) {
-	user := &User{Username: req.GetUsername(), Email: req.GetEmail()}
+	user := &User{ID: uuid.New().String(), Username: req.GetUsername(), Email: req.GetEmail()}
 	result := s.db.Create(user)
 	if result.Error != nil {
 		return nil, result.Error
