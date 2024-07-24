@@ -1,0 +1,73 @@
+services:
+  user_service:
+    build:
+      context: .
+      dockerfile: ./services/user/Dockerfile
+    ports:
+      - "50051:50051"
+    env_file:
+      - ./services/user/.env
+    depends_on:
+      postgres_user:
+        condition: service_healthy
+
+  task_service:
+    build:
+      context: .
+      dockerfile: ./services/task/Dockerfile
+    ports:
+      - "50052:50052"
+    env_file:
+      - ./services/task/.env
+    depends_on:
+      postgres_task:
+        condition: service_healthy
+
+  dtms:
+    build:
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    environment:
+      - SERVICE_USER_ADDR=user_service
+      - SERVICE_TASK_ADDR=task_service
+
+  postgres_user:
+    image: postgres:latest
+    environment:
+      POSTGRES_USER: bittu
+      POSTGRES_PASSWORD: bittu
+      POSTGRES_DB: users
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-user-data:/var/lib/postgresql/data
+      - ./initdb/init-postgres_user.sql:/docker-entrypoint-initdb.d/init-postgres_user.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U bittu -d users"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  postgres_task:
+    image: postgres:latest
+    environment:
+      POSTGRES_USER: bittu
+      POSTGRES_PASSWORD: bittu
+      POSTGRES_DB: tasks
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres-task-data:/var/lib/postgresql/data
+      - ./initdb/init-postgres_task.sql:/docker-entrypoint-initdb.d/init-postgres_task.sql
+    #   - ./initdb/postgresql.conf:/etc/postgresql/postgresql.conf
+    # command: ["postgres", "-c", "config_file=/etc/postgresql/postgresql.conf"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U bittu -d tasks"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres-user-data:
+  postgres-task-data:

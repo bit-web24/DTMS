@@ -60,7 +60,7 @@ func main() {
 		os.Getenv("DB_HOST"),
 		os.Getenv("DB_USER"),
 		os.Getenv("DB_PASSWORD"),
-		os.Getenv("DB_USER_NAME"),
+		os.Getenv("DB_NAME"),
 		os.Getenv("DB_PORT"),
 		os.Getenv("DB_SSLMODE"),
 		os.Getenv("DB_TIME_ZONE"),

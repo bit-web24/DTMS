@@ -13,6 +13,10 @@ import (
 )
 
 func main() {
+	// err := godotenv.Load(".env")
+	// if err != nil {
+	// 	log.Fatalf("Error loading .env file")
+	// }
 	ctx := context.Background()
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
@@ -21,13 +25,17 @@ func main() {
 	opts := []grpc.DialOption{grpc.WithTransportCredentials(insecure.NewCredentials())}
 
 	// Register UserService handler from endpoint
-	err := userpb.RegisterUserServiceHandlerFromEndpoint(ctx, mux, "localhost:50051", opts)
+	// user_service_addr := fmt.Sprintf("%s:50051", os.Getenv("SERVICE_USER_ADDR"))
+	// fmt.Printf("TaskServiceAddr: %s\n", os.Getenv("SERVICE_USER_ADDR"))
+	err := userpb.RegisterUserServiceHandlerFromEndpoint(ctx, mux, "0.0.0.0:50051", opts)
 	if err != nil {
 		log.Fatalf("Failed to start HTTP gateway for UserService: %v", err)
 	}
 
 	// Register TaskService handler from endpoint
-	err = taskpb.RegisterTaskServiceHandlerFromEndpoint(ctx, mux, "localhost:50052", opts)
+	// task_service_addr := fmt.Sprintf("%s:50052", os.Getenv("SERVICE_TASK_ADDR"))
+	// fmt.Printf("UserServiceAddr: %s\n", os.Getenv("SERVICE_TASK_ADDR"))
+	err = taskpb.RegisterTaskServiceHandlerFromEndpoint(ctx, mux, "0.0.0.0:50052", opts)
 	if err != nil {
 		log.Fatalf("Failed to start HTTP gateway for TaskService: %v", err)
 	}
