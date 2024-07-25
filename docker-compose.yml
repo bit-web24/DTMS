@@ -10,6 +10,14 @@ services:
     depends_on:
       postgres_user:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8081/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - user_net
+      - service_net
 
   task_service:
     build:
@@ -22,15 +30,30 @@ services:
     depends_on:
       postgres_task:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8082/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - task_net
+      - service_net
 
   dtms:
     build:
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: ./Dockerfile
     ports:
       - "8080:8080"
-    environment:
-      - SERVICE_USER_ADDR=user_service
-      - SERVICE_TASK_ADDR=task_service
+    env_file:
+      - ./.env
+    networks:
+      - service_net
+    depends_on:
+      user_service:
+        condition: service_healthy
+      task_service:
+        condition: service_healthy
 
   postgres_user:
     image: postgres:latest
@@ -38,8 +61,6 @@ services:
       POSTGRES_USER: bittu
       POSTGRES_PASSWORD: bittu
       POSTGRES_DB: users
-    ports:
-      - "5432:5432"
     volumes:
       - postgres-user-data:/var/lib/postgresql/data
       - ./initdb/init-postgres_user.sql:/docker-entrypoint-initdb.d/init-postgres_user.sql
@@ -48,6 +69,8 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    networks:
+      - user_net
 
   postgres_task:
     image: postgres:latest
@@ -55,19 +78,22 @@ services:
       POSTGRES_USER: bittu
       POSTGRES_PASSWORD: bittu
       POSTGRES_DB: tasks
-    ports:
-      - "5433:5432"
     volumes:
       - postgres-task-data:/var/lib/postgresql/data
       - ./initdb/init-postgres_task.sql:/docker-entrypoint-initdb.d/init-postgres_task.sql
-    #   - ./initdb/postgresql.conf:/etc/postgresql/postgresql.conf
-    # command: ["postgres", "-c", "config_file=/etc/postgresql/postgresql.conf"]
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U bittu -d tasks"]
       interval: 10s
       timeout: 5s
       retries: 5
+    networks:
+      - task_net
 
 volumes:
   postgres-user-data:
   postgres-task-data:
+
+networks:
+  service_net:
+  user_net:
+  task_net:

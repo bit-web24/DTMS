@@ -5,16 +5,18 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"net/http"
 	"os"
 	"time"
 
-	userpb "github.com/bit-web24/DTMS/services/user/proto"
 	"github.com/google/uuid"
 	"github.com/joho/godotenv"
 
 	pb "github.com/bit-web24/DTMS/services/task/proto"
 
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/health"
+	"google.golang.org/grpc/health/grpc_health_v1"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
@@ -29,24 +31,15 @@ type Task struct {
 
 type server struct {
 	pb.UnimplementedTaskServiceServer
-	db         *gorm.DB
-	userClient userpb.UserServiceClient
+	db *gorm.DB
 }
 
 func (s *server) CreateTask(ctx context.Context, req *pb.CreateTaskRequest) (*pb.CreateTaskResponse, error) {
-	if req.GetUserId() != "" {
-		userReq := &userpb.GetUserRequest{Id: req.GetUserId()}
-		_, err := s.userClient.GetUser(ctx, userReq)
-		if err != nil {
-			return nil, fmt.Errorf("user not found")
-		}
-	}
-
 	task := &Task{
 		ID:          uuid.New().String(),
 		Description: req.GetDescription(),
-		UserID:      req.GetUserId(),
 	}
+
 	result := s.db.Create(task)
 	if result.Error != nil {
 		return nil, result.Error
@@ -55,7 +48,6 @@ func (s *server) CreateTask(ctx context.Context, req *pb.CreateTaskRequest) (*pb
 	return &pb.CreateTaskResponse{Task: &pb.Task{
 		Id:          task.ID,
 		Description: task.Description,
-		UserId:      task.UserID,
 	},
 	}, nil
 }
@@ -81,6 +73,8 @@ func main() {
 		log.Fatalf("Error loading .env file")
 	}
 
+	fmt.Println("DB_HOST: " + os.Getenv("DB_HOST"))
+
 	dsn := fmt.Sprintf(
 		"host=%s user=%s password=%s dbname=%s port=%s sslmode=%s TimeZone=%s",
 		os.Getenv("DB_HOST"),
@@ -98,23 +92,33 @@ func main() {
 	}
 	db.AutoMigrate(&Task{})
 
-	lis, err := net.Listen("tcp", ":50052")
+	lis, err := net.Listen("tcp", ":"+os.Getenv("RPC_PORT"))
 	if err != nil {
 		log.Fatalf("failed to listen: %v", err)
 	}
 
-	userConn, err := grpc.NewClient("localhost:50051", grpc.WithInsecure())
-	if err != nil {
-		log.Fatalf("did not connect: %v", err)
-	}
-	defer userConn.Close()
-	userClient := userpb.NewUserServiceClient(userConn)
-
 	s := grpc.NewServer()
-	pb.RegisterTaskServiceServer(s, &server{db: db, userClient: userClient})
+	pb.RegisterTaskServiceServer(s, &server{db: db})
+	healthServer := health.NewServer()
+	grpc_health_v1.RegisterHealthServer(s, healthServer)
+	healthServer.SetServingStatus("task_service", grpc_health_v1.HealthCheckResponse_SERVING)
 
-	log.Printf("server listening at %v", lis.Addr())
-	if err := s.Serve(lis); err != nil {
-		log.Fatalf("failed to serve: %v", err)
+	// Start the gRPC server in a separate goroutine
+	go func() {
+		log.Printf("gRPC server listening at %v", lis.Addr())
+		if err := s.Serve(lis); err != nil {
+			log.Fatalf("failed to serve: %v", err)
+		}
+	}()
+
+	// Start an HTTP server for the health check
+	http.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("OK"))
+	})
+	httpPort := os.Getenv("HTTP_PORT")
+	log.Printf("HTTP server listening on port %s", httpPort)
+	if err := http.ListenAndServe(":"+httpPort, nil); err != nil {
+		log.Fatalf("failed to start HTTP server: %v", err)
 	}
 }
