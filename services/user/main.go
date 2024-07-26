@@ -52,6 +52,36 @@ func (s *server) GetUser(ctx context.Context, req *pb.GetUserRequest) (*pb.GetUs
 	return &pb.GetUserResponse{User: &pb.User{Id: user.ID, Username: user.Username, Email: user.Email}}, nil
 }
 
+func (s *server) DeleteUser(ctx context.Context, req *pb.DeleteUserRequest) (*pb.DeleteUserResponse, error) {
+	result := s.db.Delete(&User{}, "id = ?", req.GetId())
+
+	if result.Error != nil {
+		return nil, result.Error
+	}
+
+	return &pb.DeleteUserResponse{Success: true}, nil
+}
+
+func (s *server) GetAllUsers(ctx context.Context, req *pb.GetAllUsersRequest) (*pb.GetAllUsersResponse, error) {
+	var users []User
+	result := s.db.Find(&users)
+	if result.Error != nil {
+		return nil, result.Error
+	}
+
+	var pbUsers []*pb.User
+	for _, user := range users {
+		pbUser := &pb.User{
+			Id:       user.ID,
+			Username: user.Username,
+			Email:    user.Email,
+		}
+		pbUsers = append(pbUsers, pbUser)
+	}
+
+	return &pb.GetAllUsersResponse{Users: pbUsers}, nil
+}
+
 func main() {
 	err := godotenv.Load(".env")
 	if err != nil {

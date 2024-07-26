@@ -24,6 +24,11 @@ service UserService {
             delete: "/v1/users/{id}"
         };
     }
+    rpc GetAllUsers (GetAllUsersRequest) returns (GetAllUsersResponse) {
+        option (google.api.http) = {
+            get: "/v1/users"
+        };
+    }
 }
 
 message User {
@@ -55,4 +60,10 @@ message DeleteUserRequest {
 
 message DeleteUserResponse {
     bool success = 1;
+}
+
+message GetAllUsersRequest {}
+
+message GetAllUsersResponse {
+    repeated User users = 1;
 }

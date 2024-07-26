@@ -67,6 +67,35 @@ func (s *server) GetTask(ctx context.Context, req *pb.GetTaskRequest) (*pb.GetTa
 	}, nil
 }
 
+func (s *server) DeleteTask(ctx context.Context, req *pb.DeleteTaskRequest) (*pb.DeleteTaskResponse, error) {
+	result := s.db.Delete(&Task{}, "id = ?", req.GetId())
+
+	if result.Error != nil {
+		return nil, result.Error
+	}
+
+	return &pb.DeleteTaskResponse{Success: true}, nil
+}
+
+func (s *server) GetAllTasks(ctx context.Context, req *pb.GetAllTasksRequest) (*pb.GetAllTasksResponse, error) {
+	var tasks []Task
+	result := s.db.Find(&tasks)
+	if result.Error != nil {
+		return nil, result.Error
+	}
+
+	var pbTasks []*pb.Task
+	for _, task := range tasks {
+		pbTask := &pb.Task{
+			Id:          task.ID,
+			Description: task.Description,
+		}
+		pbTasks = append(pbTasks, pbTask)
+	}
+
+	return &pb.GetAllTasksResponse{Tasks: pbTasks}, nil
+}
+
 func main() {
 	err := godotenv.Load(".env")
 	if err != nil {

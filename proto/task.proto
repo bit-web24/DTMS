@@ -23,6 +23,11 @@ service TaskService {
             delete: "/v1/tasks/{id}"
         };
     }
+    rpc GetAllTasks (GetAllTasksRequest) returns (GetAllTasksResponse) {
+        option (google.api.http) = {
+            get: "/v1/tasks"
+        };
+    }
 }
 
 message Task {
@@ -56,4 +61,10 @@ message DeleteTaskRequest {
 
 message DeleteTaskResponse {
     bool success = 1;
+}
+
+message GetAllTasksRequest {}
+
+message GetAllTasksResponse {
+    repeated Task tasks = 1;
 }
