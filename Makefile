@@ -9,6 +9,9 @@ PROTO_FILES = $(PROTO_DIR)/task.proto $(PROTO_DIR)/user.proto
 all: generate
 
 generate: $(PROTO_FILES)
+	mkdir -p $(SERVICE_TASK_DIR)
+	mkdir -p $(SERVICE_USER_DIR)
+	
 	$(PROTOC) -I $(PROTO_DIR) -I $(GAPI_DIR) \
 		--go_out=$(SERVICE_TASK_DIR) --go_opt=paths=source_relative \
 		--go-grpc_out=$(SERVICE_TASK_DIR) --go-grpc_opt=paths=source_relative \
