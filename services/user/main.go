@@ -18,6 +18,7 @@ import (
 	"google.golang.org/grpc/health/grpc_health_v1"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
+	"gorm.io/gorm/logger"
 )
 
 type User struct {
@@ -99,11 +100,19 @@ func main() {
 		os.Getenv("DB_TIME_ZONE"),
 	)
 
-	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
+	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{
+		Logger: logger.Default.LogMode(logger.Info),
+	})
+
 	if err != nil {
 		log.Fatalf("failed to connect to database: %v", err)
 	}
-	db.AutoMigrate(&User{})
+
+	db.Exec("CREATE EXTENSION IF NOT EXISTS \"uuid-ossp\"")
+
+	if err := db.AutoMigrate(&User{}); err != nil {
+		log.Fatalf("Migration failed: %v", err)
+	}
 
 	lis, err := net.Listen("tcp", ":"+os.Getenv("RPC_PORT"))
 	if err != nil {
